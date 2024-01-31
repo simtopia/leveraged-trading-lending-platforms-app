@@ -1,5 +1,5 @@
 # Leveraged trading via Lending platforms
-App to analyse loan positions offered by decentralised lending platforms through the lens of perpetual futures. 
+App to analyse loan positions offered by decentralised lending platforms through the lens of perpetual futures.
 This app provides the simulations for the paper [Leveraged trading via lending platforms]().
 
 ### Deploying the app
@@ -7,7 +7,7 @@ Requirements can be installed using [poetry ](https://python-poetry.org) by runn
 ```
 poetry install
 ```
-activate the python environment by running 
+activate the python environment by running
 ```
 source .venv/bin/activate
 ```
