@@ -12,8 +12,8 @@ pio.templates.default = "plotly"
 
 from typing import Callable, List, Tuple
 
-if not os.path.exists("results"):
-    os.makedirs("results")
+# if not os.path.exists("results"):
+#     os.makedirs("results")
 
 
 @st.cache_data  # -- Magic command to cache data
@@ -619,7 +619,7 @@ with price_plot_col:
         line_group="variable",
         color="underlying",
     )
-    fig_price.write_image(f"results/price_mu{mu}_sigma{sigma}.png")
+    # fig_price.write_image(f"results/price_mu{mu}_sigma{sigma}.png")
     st.plotly_chart(fig_price, use_container_width=True)
 
 
@@ -697,7 +697,7 @@ with col:
     # Set y-axes titles
     fig.update_yaxes(title_text="pool utilisation", secondary_y=True)
     fig.update_yaxes(title_text="ETH-USD price", secondary_y=False)
-    fig.write_image(f"results/price_utilisation_mu{mu}_sigma{sigma}.png")
+    # fig.write_image(f"results/price_utilisation_mu{mu}_sigma{sigma}.png")
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -874,7 +874,7 @@ with price_col:
     fig.for_each_trace(
         lambda x: x.update(name=names[x.name], legendgroup=names[x.name])
     )
-    fig.write_image(f"results/pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
+    # fig.write_image(f"results/pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
     st.plotly_chart(fig, use_container_width=True)
     table = (
         df_pnl_melted[df_pnl_melted["time"] == t][["derivative", "PnL"]]
@@ -886,11 +886,11 @@ with price_col:
     table.columns = ["derivative", "mean PnL", "std dev PnL"]
     st.dataframe(table, hide_index=True, use_container_width=True)
 
-    df_pnl_melted[df_pnl_melted["time"] == t][["derivative", "PnL"]].groupby(
-        "derivative"
-    ).agg({"PnL": [np.mean, np.std]}).reset_index().to_csv(
-        f"results/pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.csv"
-    )
+    # df_pnl_melted[df_pnl_melted["time"] == t][["derivative", "PnL"]].groupby(
+    #     "derivative"
+    # ).agg({"PnL": [np.mean, np.std]}).reset_index().to_csv(
+    #     f"results/pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.csv"
+    # )
 
     cols = ["mc{}".format(i) for i in range(pnl_perps.shape[0])]
     pnl_diff = df_pnl_cperp[cols] - df_pnl_perp[cols]
@@ -905,7 +905,7 @@ with price_col:
         nbins=200,
         labels={"diff_pnl": "(PnL loan position) - (PnL long perp position)"},
     )
-    fig.write_image(f"results/diff_pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
+    # fig.write_image(f"results/diff_pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
     st.plotly_chart(fig, use_container_width=True)
     table = (
         pnl_diff_melted[pnl_diff_melted["time"] == t]["diff_pnl"]
@@ -971,7 +971,7 @@ with price_col:
     fig.for_each_trace(
         lambda x: x.update(name=names[x.name], legendgroup=names[x.name])
     )
-    fig.write_image(f"results/funding_fee_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
+    # fig.write_image(f"results/funding_fee_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
     st.plotly_chart(fig, use_container_width=True)
 
     table = (
@@ -984,13 +984,13 @@ with price_col:
     table = table.replace(to_replace="cPerp", value="Loan position")
     st.dataframe(table, hide_index=True, use_container_width=True)
 
-    df_funding_fee_melted[df_pnl_melted["time"] == t][
-        ["derivative", "funding_fee"]
-    ].groupby("derivative").agg(
-        {"funding_fee": [np.mean, np.std]}
-    ).reset_index().to_csv(
-        f"results/funding_fee_mu{mu}_sigma{sigma}_thetaF{lt_f}.csv"
-    )
+    # df_funding_fee_melted[df_pnl_melted["time"] == t][
+    #     ["derivative", "funding_fee"]
+    # ].groupby("derivative").agg(
+    #     {"funding_fee": [np.mean, np.std]}
+    # ).reset_index().to_csv(
+    #     f"results/funding_fee_mu{mu}_sigma{sigma}_thetaF{lt_f}.csv"
+    # )
 
 
 # --------------
@@ -1038,5 +1038,5 @@ with col:
     fig.for_each_trace(
         lambda x: x.update(name=names[x.name], legendgroup=names[x.name])
     )
-    fig.write_image(f"results/liquidation_times_mu{mu}_sigma{sigma}.png")
+    # fig.write_image(f"results/liquidation_times_mu{mu}_sigma{sigma}.png")
     st.plotly_chart(fig, use_container_width=True)
