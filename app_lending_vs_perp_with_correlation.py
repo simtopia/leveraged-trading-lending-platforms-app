@@ -336,7 +336,7 @@ dt = 0.01
 n_steps = 100
 p0 = 2000
 seed = 1
-n_mc = 10000
+n_mc = 500  # 10000
 
 r = 0.05
 kappa = 1
@@ -360,7 +360,7 @@ with header_col2:
 # --------
 # INTRO
 # --------
-st.header("Loan positions through the lens of perpetual futures")
+st.header("Loan positions vs perpetual futures")
 st.markdown(
     """
     This dashboard allows users to compare loan contracts offered by lending protocols and perpetual futures,
@@ -408,13 +408,13 @@ with expander:
 # -----------
 
 st.subheader("Price process of underlying and price process of perps option")
-price_col1, price_col2, _ = st.columns([0.2, 0.2, 0.6], gap="medium")
-with price_col1:
+col1, col2, col3 = st.columns([0.3, 0.3, 0.3], gap="large")
+with col1:
     st.write("Price process")
     mu = st.slider("$\mu$", -1.2, 0.3, 0.0, step=0.3)  # min, max, default
     sigma = st.slider("$\sigma$", 0.1, 0.5, 0.3, 0.2)  # min, max, default
 
-with price_col2:
+with col2:
     st.write("Perps Price process")
     select_perp = st.selectbox(
         "How do we define the Perp price process?",
@@ -429,6 +429,9 @@ with price_col2:
         "$\lambda$ mean-reversion parameter", 1, 200, 50
     )  # min, max, default
     sigma_f = st.slider("$\sigma_F$", 0.01, 500.0, 100.0)  # min, max, default
+
+with col3:
+    st.write(f"Number of Monte Carlo simulations: {n_mc}")
 
 
 price_paths = get_gbm(mu, sigma, dt, n_steps, p0, seed, n_mc)
