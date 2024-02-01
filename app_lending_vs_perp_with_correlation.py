@@ -360,185 +360,46 @@ with header_col2:
 # --------
 # INTRO
 # --------
-st.header("Introduction")
+st.header("Loan positions through the lens of perpetual futures")
 st.markdown(
     """
-    In this dashboard we present the simulations underpinning the results in the paper [Leveraged trading via lending platforms]().
+    This dashboard allows users to compare loan contracts offered by lending protocols and perpetual futures,
+    which are two main mechanisms for trading cryptocurrencies on margins. The user can study PnLs, the likelihood
+    of liquidation for loan positions, and the close-out margin for both contracts.
 
-    Decentralised lending protocols enable users to enter a leveraged long
-    or short trading position, which provides one of the economic rationales for overcollateralised
-    loans. The smaller the haircut on the provided collateral (initial Loan-to-Value),
-    the higher the leverage. This work compares loan positions on leading
-    platforms with perpetual futures, a primary mechanism for trading leverage in a
-    decentralised finance (DeFi) ecosystem. We introduce the notion of the implied
-    funding fee/funding rate and contrast it with the funding fee/funding rate for perpetual
-    futures and find that the former is significantly less volatile than the latter.
-    Furthermore, we study PnL for both positions, the likelihood of liquidation for loan
-    positions, and the margin calls for perpetual futures across multiple market conditions.
+    Users can study the Profit-and-Loss (PnL) of these positions and the implied funding fee/rate and maintenance margin
+    rule for loan contracts and contrast these to perpetual futures under varied market conditions.
+
+    This dashboard allows users to set the relevant parameters: maxLTV, LLTV, and initial and maintenance margin and run
+    simulations under varied market conditions. This, for example, can help users study potential statistical arbitrage
+    opportunities that may arise between futures markets and lending platforms or hedge the risk arising from liquidity provision on lending protocols.
+
+    A thorough analysis underpinned with market data and simulations can be found in our paper: [Leveraged Trading via Lending Platforms](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4437706).
+    Our [blog post](https://medium.com/@simtopia/a76d6239600d) summarises the results.
     """
 )
 
-# st.header("Notation and key objects")
-# expander = st.expander("Loan Position")
-# with expander:
-#     st.markdown(
-#         """
-#         $(P_t)_{t\geq 0}$ denoted the price process of a risky asset (e.g. ETH), with a dollar stablecoin being the numeraire (e.g DAI).
 
-#         Let $(r^{b,E}, r^{c,E})$, $(r^{b,D}, r^{c,D})$ be interest rates for borrowing and providing collateral for ETH and DAI respectively.
-#         Furthermore, Let $\\theta^0\in[0,1)$ be an initial Loan-to-Value, meaning one can borrow up to $\\theta^0$  worth of ETH for every unit of ETH deposited as collateral.
-#         To open an a long-ETH loan position an agent effectively requires $P_0(1 - \\theta^0)$ of DAI to establish the position. For capital efficiency the agent may use a (or a flashloan and a swap) along the following steps:
-
-#         - Begin with $P_0(1-\theta^0)$ of DAI
-#         - Obtain 1 ETH using flashswap (need to deposit $P_0$ DAI within one block for this to materialise)
-#         - Deposit 1 ETH as collateral and start earning interests according to $e^{r^{c,E}\,t}$
-#         - Borrow $\\theta^0 \,P_0$ of DAI against the collateral and start paying interests according to $\\theta^0 \,P_0 e^{r^{b,D}\, t}$
-#         - Put together $\\theta^0 \,P_0$ and initial amount $P_0(1-\\theta^0)$  of DAI to complete the flashswap.
-
-#         At any time the holder of the position may choose to pay back the loan $\\theta^0 \,P_0 e^{r^{b,D}\, t}$ in exchange for the collateral with
-#         value $P_t\,e^{r^{c,E}\,t} $. Note that a rational agent will only do that if $\\theta^0 \,P_0 e^{r^{b,D}\, t} \leq P_t\,e^{r^{c,E}\,t}$, otherwise
-#         it is better to walk away from the position.  Hence, up until the liquidation the agent in entitled to the  payoff
-#         $$
-#         (P_t\,e^{r^{c,E}\,t} -\\theta^0 \,P_0 e^{r^{b,D}\, t} )_{+} = e^{r^{b,D}\, t} (P_t\,e^{(r^{c,E}-r^{b,D})\,t} -\\theta^0 \,P_0  )_{+},
-#         $$
-#         where $x_+ = \max\{0,x\}$.
-
-#         Let $\\theta \in (\\theta^0,1)$ be a liquidation threshold. If the value of the asset falls too low, the position will be liquidated. This occurs at time $\\tau^B$ defined as
-#         $$
-#         \\tau^B := \inf \left\{ t \geq 0: \\theta P_t e^{r^{c,E} \, t} \leq \\theta^0 \,P_0\ e^{r^{b,D} \,t}  \\right\} =  \inf \left\{ t \geq 0:  P_t e^{(r^{c,E} - r^{b,D})\, t} \leq \\theta^{-1 }\\theta^0 \,P_0  \\right\}
-#         $$
-
-#         The payoff accounting for liquidations is given by
-#         $$
-#         \psi(P_t) :=       (P_t\,e^{r^{c,E}\,t} - \\theta^0 \,P_0\,e^{r^{b,D}\, t} )\mathbb{1}_{\{t<\\tau^B\}}\,.
-#         $$
-
-#         The PnL is given by
-#         $$
-#         \\text{PnL}_t=\psi(P_t) - \psi(P_0)  = (P_t\,e^{(r^{c,E})\,t} - \\theta^0 \,P_0\,e^{r^{b,D}\, t} )\mathbb{1}_{\{t<\\tau^B\}} - P_0(1-\\theta^0)
-#         $$
-#         The PnL is driven by the change in the price of ETH/DAI and interest rates.
-
-#         To see how lending position relates to trading spot with a leverage note that up to a liquidation event i.e for $t<\\tau^B$,
-#         for and ignoring interest rates (one can think of small $t$), i.e  $r^{c,E}=r^{b,D}$ the PnL is given $P_t - P_0$ but the agent
-#         only needs $P_0(1-\\theta^0)$ to enter the contract (and not $P_0$ which would be required to enter a spot trade).
-#         Hence we see that the initial LTV translates into leverage. The closer $\\theta^0$ is to $1$ the higher the leverage and consequently the risk of a liquidation.
-#         """
-#     )
-
-# expander = st.expander("Implied Funding fee of Loan Position")
-# with expander:
-#     st.markdown(
-#         """
-#         We see there is a fine balance between the change in the price of  ETH/DAI and the interest rate.
-#         The changing interest rates on a lending protocol have a similar effect to the funding rate for perpetual
-#         futures in the sense that if demand for a long position on a lending platform translates to significant change
-#         in interest rates in comparison to the change of ETH then longs are losing money. We can also write for $t<\tau^B$
-#         $$
-#         \\text{PnL}_t = \psi(P_t) - \psi(P_0)  = P_t - P_0 - \left( P_t - P_0   - \psi(P_t ) + \psi(P_0) \\right)
-#         $$
-#         $$
-#         \,\,\,\,\, =  P_t - P_0 - \left( P_t(1 -e^{r^{C,E} t })   - \\theta ^0 P_0 (1 - e^{r^{b,D} t}) \\right)
-#         $$
-#         $$
-#         \,\,\,\,\, = P_te^{r^{C,E} t } - P_0  - \\theta^0P_0(e^{r^{b,D} t} - 1)\,.
-#         $$
-#         This shows one can decompose the PnL of the loan position into $ P_t - P_0 $ which corresponds to gains from leveraged trading and
-#           $\left( P_t(1 -e^{r^{C,E} t })   - \\theta ^0 P_0 (1 - e^{r^{b,D} t}) \\right)$  which can be thought of as a counterpart of funding fee for perpetual futures.
-#         """
-#     )
-
-# expander = st.expander("Perpetual futures")
-# with expander:
-#     st.markdown(
-#         """
-#         An agent seeking to enter a leveraged long or short trading position instead of using loan protocol may use a venue offering perpetual future contracts.
-
-#         *Definition - Perpetuals Futures*
-
-#         *A perpetual contract with price F and a funding rate design to track spot price $P$ is an agreement between two parties referred to as the long side and short side.
-#         There is 0 cost to enter the agreement. The long side has the right to terminate the contract at any time $t \geq 0$, at which point they will receive a payment of $F_t - F_0$.
-#         In return, for a fixed scaling parameter $\kappa>0 $, at every $t_i$, $i=1,2,\ldots$  the long-side must pay to the short side
-#         the $\\frac{\kappa}{t_{i+1} - t_i}\int_{t_i}^{t_{i+1}}\left( (F_s-P_s\\right)ds$ referred to as the funding rate up until the contract is terminated.*
-
-
-#         As frequency of funding rate payment increases funding rate converges to $\kappa \int_0^t \left( F_s -P_s \\right)ds$ and its value at time $t$ is
-#         $\kappa \int_0^t e^{r(t-s)}\left( F_s -P_s \\right)ds$.
-#         The PnL generated by the long perpetual futures  is given by
-#         $$
-#         \\text{PnL}_t^{F} :=  F_t - F_0  -  \kappa \int_0^t \,e^{r(t-s)} \left( F_s -P_s \\right)ds\,.
-#         $$
-
-#         The fair price of the perpetual futures can be deduced by requiring that there is no cash-and-carry arbitrage opportunities in the market. An agent who begins with zero capital, shorts spot and at the same going long futures contract (or being long spot and short futures contract) shouldn't at any time have positive cash flows with probability one.
-
-#         Through the computation we discount all the cash flows with $r^{c,D}$. The economic rationale for this is that $r^{c,D}$ is a rate at which blockchain users are willing lend liquid stable coins and hence we can take it as a proxy for risk free rate on these markets.
-
-#         *Lemma - Non arbitrage price of perp option*
-
-#         *Assume that spot and futures prices are given by stochastic process $(P_t)_{t\geq 0}$ and $(S_t)_{t\geq 0}$ adapted to a filtration $(\mathcal F_t)_{t\geq 0}$.
-#         Assume now there there is a measure $\mathbb P$ such that*
-#         $$
-#             \mathbb E^{\mathbb P} \left[  \int_0^\infty e^{-r^{c,D}s} \left( |P_s| + |F_s| \\right) ds  \\right] <\infty\,.
-#         $$
-#         *Then either there is cash-and-carry arbitrage or spot and perpetual future price satisfy for any $t>0$ and $\kappa>0$*
-
-#         $$
-#             F_t = P_t\,(1+\\frac{r^{c,D}}{\kappa})
-#         $$
-
-#         """
-#     )
-
-# expander = st.expander("Margin trading and PnL of long Perps considering liquidation")
-# with expander:
-#     st.markdown(
-#         """
-#         To compare perpetual futures to the corresponding loan position, assume that there is a venue that allows agents to take long
-#         perpetual future position using the same leverage as a lending platform that is $\\frac{1}{1-\\theta^0}$.
-
-#         We first assume that the non-arbitrage condition established in the Lemma holds, that is  $F_t = P_t(1+\\frac{r}{\kappa})$.
-
-#         To enter a long perpetual futures position, an agent
-
-#         1. Deposits $P_0(1-\\theta^0)$ on an initial margin account. This corresponds to the initial margin.
-#         2. Gains exposure to $P_0 = F_0(1+\\frac{r}{\kappa})^{-1}$ perpetual futures with a cash-flow
-#         $$
-#         \\text{PnL}^F_t := \left( 1 + \\frac{r}{\kappa}\\right)^{-1}\left( F_t - F_0  -  \kappa \int_0^t \,e^{r(t-s)} \left( F_s -P_s \\right)ds \\right)\,.
-#         $$
-
-#         We assume that
-#         $$
-#         \\text{maintenance margin}_t = P_t(1-\\theta^0) \cdot \\theta^F, \,\,\,\,0 \leq \\theta^F \leq 1.
-#         $$
-
-#         The position gets liquidated when $\\text{initial margin} + \\text{PnL}_t^F \leq \\text{maintenance margin}_t$. The first time this happens is given by
-
-#         $$
-#         \\tau^F := \left\{t \geq 0 : P_t(1-\\theta^0) \cdot \\theta^F \leq P_0(1-\\theta^0) +  \\text{PnL}_t^F\\right\},
-#         $$
-
-#         thus the PnL including liquidation is $\\text{PnL}_{t\wedge \\tau^F}^F$.
-#         """
-#     )
-
-st.subheader("Numerical experiment")
+st.subheader("Statistical model for the risky assets")
 expander = st.expander("model")
 with expander:
     st.markdown(
         """
-        Assume that the price ETH/DAI follows geometric Brownian motion with drift $\mu\in\mathbb R$ and volatility $\sigma\in(0,\infty)$ so that
+        We model the price of ETH-DAI as a Geometric Brownian Process
         $$
-            P_t=P_0 \exp\left( (\mu - \\frac{1}{2}\sigma^2)t + \sigma W_t  \\right)\,.
+            \\text{d} P_t=\mu P_t \\text{d}t + \sigma P_t \\text{d}W_t, \,\,P_0 = p_0\,.
         $$
-        From the data one can see that not arbitrager condition $F_t = P_t(1+\\frac{r}{\kappa})$ is often violated. This is because we have not
-        considered market frictions such as slippage, gas fees etc. To better reflect market data model the price process $(F_t)_{t\geq 0}$ by stochastic mean-reverting process.
+        The drift coefficient $\mu$ corresponds to market trend, while the diffusion coefficient $\sigma$
+        corresponds to market volatility. We model the price of the perpetual futures $F_t$ as a mean-reverting
+        process around the price of EHT-DAI,
+        $$
+            dF_t = \lambda (P_t - F_t)dt + \sigma^F dW_t^F,\,\, F_0 = f_0, \,\, [W^F, W]_t = \\rho  t.
+        $$
+        Here $\lambda$ dictates the strenght of the mean reversion, $\sigma^F$ is the intrinsic volatility of the price perpetual futures, while
+        $\\rho$ is a correlation coefficient between noise processes driving the price of ETH-DAI and the Perp.
 
-        For mean-reversion parameter $\lambda>0$, and volatility $\sigma^F$ one can model price of future contract as
-        $$
-            dF_t = \lambda (P_t - F_t)dt + \sigma^F F_t dW_t^F\,,
-        $$
-
-        where $[W^F,W](t) = \\rho t$. One can then compare PnLs and liquidation times of perpetual futures and loan positions in different market regimes.
+        One can see from the data these are sensible modelling assumptions, but of course, more sophisticated models are available. All these parameters
+        can be estimated from the data, and can be specified below.
         """
     )
 
@@ -626,7 +487,7 @@ with price_plot_col:
 # ----------------------------------
 # Utilisation of collateral Pool
 # ----------------------------------
-st.subheader("Utilisation of collateral pool")
+st.subheader("Correlation between price and Utilisation of collateral pool")
 with st.expander("Impact of lending on the spot"):
     st.markdown(
         """
@@ -645,12 +506,10 @@ with st.expander("Impact of lending on the spot"):
         $$
         where $g(x) = (1+e^{-x})^{-1}$ is the sigmoid function and $ABC$ denotes ETH or DAI.
 
-        Note that the quadratic covariation of $\mathcal U_t, P_t$ satisfies
-
-        $$
-        d[P_t, \mathcal U_t^{ABC}] = g'(\\nu_t) \\alpha^{ABC} d[P_t, P_t]
-        $$
-        hence the parameter $\\alpha^{ABC}$ provides the strength of the association between $P_t, \mathcal U^{ABC}_t$.
+        In other words $\\alpha^{ABC}$ measures relative change of $\\nu$ with respect to change of $P$ and use sigmoid function $g$ to map
+        $\\nu$ to the utilisation $U\in[0,1]$. We use the sigmoid function as it is convenient to bring any real value to the interval $(0,1)$.
+        When $\\alpha^{ETH}$ is negative and $\\alpha^{DAI}$ is positive, an increase in the price of ETH decreases the utilisation of ETH and
+        increases the utilisation of DAI, as speculated above.
         """
     )
 
@@ -705,7 +564,8 @@ with col:
 # --------------------------
 # Interest rate model
 # --------------------------
-st.subheader("Interest rate model")
+st.markdown("---")
+st.write("Interest rate model")
 r_0 = 0
 r_1 = 0.04
 r_2 = 2.5
@@ -728,7 +588,7 @@ with col1:
         """
         At this point we define the interest rate defined by the protocol. In Aave, this is given by
 
-        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \, \mathbf 1_{\mathcal U \leq \mathcal U^*} + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*} \cdot \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
+        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \, \mathbf 1_{\mathcal U \leq \mathcal U^*} + \left(r_1 + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*}\\right) \cdot \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
         for $r_0,r_1,r_2 >0$ and $\mathcal U^* \in [0,1)$ the targeted pool utilisation by the protocol.
 
         We set $r_0 = %.2f, r_1 = %.2f, r_2 = %.2f, U^*=%.2f$
@@ -748,7 +608,7 @@ r_debt_dai = vect_irm(
 )
 
 st.markdown("""---""")
-st.subheader("Price and Interest rates")
+st.write("Price and Interest rates")
 _, col, _ = st.columns([0.1, 0.8, 0.1])
 with col:
     # Create figure with secondary y-axis
