@@ -729,7 +729,7 @@ with price_col:
         x="PnL",
         color="derivative",
         opacity=0.5,
-        nbins=200,
+        nbins=50,
         barmode="overlay",
         # range_x=(-400, 200),
     )
@@ -765,7 +765,7 @@ with price_col:
         pnl_diff_melted[pnl_diff_melted["time"] == t],
         x="diff_pnl",
         opacity=0.5,
-        nbins=200,
+        nbins=50,
         labels={"diff_pnl": "(PnL loan position) - (PnL long perp position)"},
     )
     # fig.write_image(f"results/diff_pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
@@ -825,7 +825,7 @@ with price_col:
         x="funding_fee",
         color="derivative",
         opacity=0.5,
-        nbins=100,
+        nbins=50,
         barmode="overlay",
         # range_x=(-15, 15),
         labels={"cPerp": "Loan position", "funding_fee": "funding fee"},
