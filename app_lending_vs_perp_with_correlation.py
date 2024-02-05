@@ -220,6 +220,7 @@ def get_perps_price_realistic(
     dt: float,
     window_length: int,
     delta: float,
+    lambda_: int,
     seed: int = 1,
 ) -> np.array:
 
@@ -237,8 +238,11 @@ def get_perps_price_realistic(
     rng = np.random.default_rng(seed)
     for step in range(1, mean_rev.shape[1]):
         z = rng.normal(size=n_mc)
-        dP = price_paths[:, step] - price_paths[:, step - 1]
-        mean_rev[:, step] = mean_rev[:, step - 1] + coef * dP + np.sqrt(dt) * sigma * z
+        mean_rev[:, step] = (
+            mean_rev[:, step - 1]
+            + lambda_ * (price_paths[:, step - 1] - mean_rev[:, step - 1]) * dt
+            + np.sqrt(dt) * sigma * z
+        )
 
     f = np.copy(mean_rev)
     spot = np.copy(price_paths)
@@ -518,7 +522,12 @@ elif select_perp == "Mean-reversion to non-arbitrage price":
     )
 else:
     price_paths, perps_price_paths = get_perps_price_realistic(
-        price_paths=price_paths, sigma=sigma_f, dt=dt, window_length=5, delta=5
+        price_paths=price_paths,
+        sigma=sigma_f,
+        dt=dt,
+        window_length=5,
+        delta=5,
+        lambda_=lambda_,
     )
 
 
