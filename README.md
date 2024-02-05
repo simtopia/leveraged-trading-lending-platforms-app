@@ -14,6 +14,6 @@ source .venv/bin/activate
 
 In order to deploy the app, run
 ```
-streamlit run app/app_lending_vs_perp_with_correlation.py
+streamlit run app_lending_vs_perp_with_correlation.py
 ```
 to view the app in your browser in  http://localhost:8501.
