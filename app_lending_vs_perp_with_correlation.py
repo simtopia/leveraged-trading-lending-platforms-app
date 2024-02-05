@@ -1,4 +1,4 @@
-import os
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ from plotly.subplots import make_subplots
 
 pio.templates.default = "plotly"
 
-from typing import Callable, List, Tuple
 
 # if not os.path.exists("results"):
 #     os.makedirs("results")
@@ -178,7 +177,6 @@ def get_perps_price_mean_rev(
     f0 = p0 * (1 + r / kappa)
     f = np.ones_like(price_paths) * f0
     rng = np.random.default_rng(seed)
-    coef = 1 + r / kappa
     for step in range(1, f.shape[1]):
         z = rng.normal(size=n_mc)
         f[:, step] = (
@@ -215,6 +213,60 @@ def get_perps_price_mean_rev_to_non_arb(
     return f
 
 
+@st.cache_data
+def get_perps_price_realistic(
+    price_paths: np.array,
+    sigma: float,
+    dt: float,
+    window_length: int,
+    delta: float,
+    seed: int = 1,
+) -> np.array:
+
+    n_mc = price_paths.shape[0]
+    p0 = price_paths[0, 0]
+
+    # moving average
+    window_view = np.lib.stride_tricks.sliding_window_view(
+        price_paths, window_length, axis=1
+    )
+    moving_average = np.mean(window_view, axis=-1)
+    change = np.diff(moving_average, n=1, axis=-1)
+
+    mean_rev = np.ones_like(price_paths) * p0
+    rng = np.random.default_rng(seed)
+    for step in range(1, mean_rev.shape[1]):
+        z = rng.normal(size=n_mc)
+        dP = price_paths[:, step] - price_paths[:, step - 1]
+        mean_rev[:, step] = mean_rev[:, step - 1] + coef * dP + np.sqrt(dt) * sigma * z
+
+    f = np.copy(mean_rev)
+    spot = np.copy(price_paths)
+    for i, step in enumerate(range(window_length, mean_rev.shape[1])):
+        # bullish
+        mask_bullish = change[:, i] > delta
+        f[mask_bullish == 1, step] = price_paths[mask_bullish == 1, step]
+        z = rng.normal(size=n_mc)
+        spot[mask_bullish == 1, step] = (
+            f[mask_bullish == 1, step - 2] + np.sqrt(dt) * sigma * z[mask_bullish == 1]
+        )
+
+        # bearish
+        mask_bearish = change[:, i] < -delta
+        f[mask_bearish == 1, step] = price_paths[mask_bearish == 1, step]
+        z = rng.normal(size=n_mc)
+        spot[mask_bearish == 1, step] = (
+            f[mask_bearish == 1, step - 2] + np.sqrt(dt) * sigma * z[mask_bearish == 1]
+        )
+
+        # neutral
+        mask_neutral = (mask_bullish + mask_bearish) == 0
+        spot[mask_neutral == 1, step] = price_paths[mask_neutral == 1, step]
+        f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
+
+    return spot, f
+
+
 def get_perps_price_non_arb(price_paths: np.array, r: float, kappa: float = 1):
     f = price_paths * (1 + r / kappa)
     return f
@@ -227,9 +279,6 @@ def get_funding_fee_perps(
     dt: float,
     kappa: float = 1,
 ):
-    p0 = price_paths[0, 0]
-    f0 = perps_price_paths[0, 0]
-
     n_mc, n_steps = price_paths.shape
     funding_fee = np.zeros(shape=(n_mc, n_steps))
     time_array = np.arange(n_steps) * dt
@@ -254,11 +303,11 @@ def get_pnl_perps(
     kappa: float = 1,
 ):
     n_mc, n_steps = perps_price_paths.shape
-    funding_rate = get_funding_fee_perps(
+    funding_fee = get_funding_fee_perps(
         price_paths, perps_price_paths, r_debt_dai, dt, kappa
     )
     pnl = np.zeros_like(price_paths)
-    pnl = perps_price_paths - perps_price_paths[:, 0].reshape(n_mc, 1) - funding_rate
+    pnl = perps_price_paths - perps_price_paths[:, 0].reshape(n_mc, 1) - funding_fee
     coef = 1 + r / kappa
     return 1 / coef * pnl
 
@@ -302,7 +351,6 @@ def get_pnl_perps_after_liquidation(
     kappa: float = 1,
 ):
     pnl = get_pnl_perps(price_paths, perps_price_paths, r_debt_dai, dt, r, kappa)
-    p0 = price_paths[0, 0]
     n_mc, n_steps = price_paths.shape
     time_array = np.arange(n_steps) * dt
     time_array = np.tile(time_array, (n_mc, 1))
@@ -363,18 +411,23 @@ with header_col2:
 st.header("Loan positions vs perpetual futures")
 st.markdown(
     """
-    This dashboard allows users to compare loan contracts offered by lending protocols and perpetual futures,
-    which are two main mechanisms for trading cryptocurrencies on margins. The user can study PnLs, the likelihood
+    This dashboard allows users to compare loan contracts offered by lending protocols
+    and perpetual futures, which are two main mechanisms for trading cryptocurrencies
+    on margins. The user can study PnLs, the likelihood
     of liquidation for loan positions, and the close-out margin for both contracts.
 
-    Users can study the Profit-and-Loss (PnL) of these positions and the implied funding fee/rate and maintenance margin
-    rule for loan contracts and contrast these to perpetual futures under varied market conditions.
+    Users can study the Profit-and-Loss (PnL) of these positions and the implied
+    funding fee/rate and maintenance margin rule for loan contracts and contrast these
+    to perpetual futures under varied market conditions.
 
-    This dashboard allows users to set the relevant parameters: maxLTV, LLTV, and initial and maintenance margin and run
-    simulations under varied market conditions. This, for example, can help users study potential statistical arbitrage
-    opportunities that may arise between futures markets and lending platforms or hedge the risk arising from liquidity provision on lending protocols.
+    This dashboard allows users to set the relevant parameters: maxLTV, LLTV,
+    and initial and maintenance margin and run simulations under varied market conditions.
+    This, for example, can help users study potential statistical arbitrage
+    opportunities that may arise between futures markets and lending platforms or hedge
+    the risk arising from liquidity provision on lending protocols.
 
-    A thorough analysis underpinned with market data and simulations can be found in our paper: [Leveraged Trading via Lending Platforms](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4437706).
+    A thorough analysis underpinned with market data and simulations can be found in
+    our paper: [Leveraged Trading via Lending Platforms](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4437706).
     Our [blog post](https://medium.com/@simtopia/a76d6239600d) summarises the results.
     """
 )
@@ -395,11 +448,12 @@ with expander:
         $$
             dF_t = \lambda (P_t - F_t)dt + \sigma^F dW_t^F,\,\, F_0 = f_0, \,\, [W^F, W]_t = \\rho  t.
         $$
-        Here $\lambda$ dictates the strenght of the mean reversion, $\sigma^F$ is the intrinsic volatility of the price perpetual futures, while
+        Here $\lambda$ dictates the strenght of the mean reversion, $\sigma^F$ is the intrinsic volatility of
+        the price perpetual futures, while
         $\\rho$ is a correlation coefficient between noise processes driving the price of ETH-DAI and the Perp.
 
-        One can see from the data these are sensible modelling assumptions, but of course, more sophisticated models are available. All these parameters
-        can be estimated from the data, and can be specified below.
+        One can see from the data these are sensible modelling assumptions, but of course, more sophisticated
+        models are available. All these parameters 424Gcan be estimated from the data, and can be specified below.
         """
     )
 
@@ -411,7 +465,7 @@ st.subheader("Price process of underlying and price process of perps option")
 col1, col2, col3 = st.columns([0.3, 0.3, 0.3], gap="large")
 with col1:
     st.write("Price process")
-    mu = st.slider("$\mu$", -1.2, 0.3, 0.0, step=0.3)  # min, max, default
+    mu = st.slider("$\mu$", -1.2, 1.2, 0.0, step=0.3)  # min, max, default
     sigma = st.slider("$\sigma$", 0.1, 0.5, 0.3, 0.2)  # min, max, default
 
 with col2:
@@ -422,6 +476,7 @@ with col2:
             "Non-arbitrage",
             "Mean-reversion to P",
             "Mean-reversion to non-arbitrage price",
+            "Funding rates correlated with market sentiment",
         ],
         index=1,
     )
@@ -429,6 +484,8 @@ with col2:
         "$\lambda$ mean-reversion parameter", 1, 200, 50
     )  # min, max, default
     sigma_f = st.slider("$\sigma_F$", 0.01, 500.0, 100.0)  # min, max, default
+
+    coef = st.slider("coef", 0.8, 1.2, 1.0, step=0.05)
 
 with col3:
     st.write(f"Number of Monte Carlo simulations: {n_mc}")
@@ -441,7 +498,7 @@ df_price_paths = pd.DataFrame(
 )
 df_price_paths = df_price_paths.assign(time=time, underlying="spot")
 if select_perp == "Non-arbitrage":
-    perps_price_paths = get_perps_price_non_arb(price_paths, r=0.01, kappa=kappa)
+    perps_price_paths = get_perps_price_non_arb(price_paths, r=0.05, kappa=kappa)
 elif select_perp == "Mean-reversion to P":
     perps_price_paths = get_perps_price_mean_rev(
         price_paths,
@@ -451,7 +508,7 @@ elif select_perp == "Mean-reversion to P":
         r=0.01,
         kappa=kappa,
     )
-else:
+elif select_perp == "Mean-reversion to non-arbitrage price":
     perps_price_paths = get_perps_price_mean_rev_to_non_arb(
         price_paths,
         lambda_=lambda_,
@@ -460,6 +517,12 @@ else:
         r=0.01,
         kappa=kappa,
     )
+else:
+    price_paths, perps_price_paths = get_perps_price_realistic(
+        price_paths=price_paths, sigma=sigma_f, dt=dt, window_length=5, delta=5
+    )
+
+
 df_perps_price_paths = pd.DataFrame(
     perps_price_paths.T,
     columns=["mc{}".format(i) for i in range(perps_price_paths.shape[0])],
@@ -486,6 +549,37 @@ with price_plot_col:
     # fig_price.write_image(f"results/price_mu{mu}_sigma{sigma}.png")
     st.plotly_chart(fig_price, use_container_width=True)
 
+st.markdown("""---""")
+st.markdown("Difference of price, $F_t - P_t$, proportional to perps fee rate. ")
+col_seed, col, _ = st.columns([0.1, 0.8, 0.1], gap="medium")
+with col_seed:
+    seed0 = st.slider("seed price sample", 0, n_mc, 0, step=1)
+with col:
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(
+        go.Scatter(x=time, y=price_paths[seed0, :], name="ETH price"), secondary_y=False
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=time,
+            y=perps_price_paths[seed0, :] - price_paths[seed0],
+            name="Perps price - spot price",
+            fill="tozeroy",
+        ),
+        secondary_y=True,
+    )
+
+    # Set x-axis title
+    fig.update_xaxes(title_text="time")
+
+    # Set y-axes titles
+    fig.update_yaxes(title_text="Perps price - spot price", secondary_y=True)
+    fig.update_yaxes(title_text="ETH-USD price", secondary_y=False)
+
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # ----------------------------------
 # Utilisation of collateral Pool
@@ -494,24 +588,31 @@ st.subheader("Correlation between price and Utilisation of collateral pool")
 with st.expander("Impact of lending on the spot"):
     st.markdown(
         """
-        If market participants are bullish on the price of ETH/DAI and wish to enter a leveraged position via a lending protocol,
+        If market participants are bullish on the price of ETH/DAI and wish to enter
+        a leveraged position via a lending protocol,
         they are depositing ETH as collateral and borrowing DAI.
 
-        On the other hand, opening a long ETH loan position, ceteris paribus decreases utilisation and hence interest rate for lending ETH,
+        On the other hand, opening a long ETH loan position, ceteris paribus decreases
+        utilisation and hence interest rate for lending ETH,
         and increases utilisation and therefore interest rate for borrowing DAI
-        (how these rates change depends on the elasticity of market supply and demand curves and interest rate mechanism).
+        (how these rates change depends on the elasticity of market supply and demand curves
+        and interest rate mechanism).
         This implies that the PnL of a loan position decreases, and the liquidation risk increases.
 
         We model model the utilisation of the DAI and ETH pool in terms of the ETH price as
 
         $$
-        \mathcal U_t^{ABC} = g(\\nu_t^{ABC}), \quad \\text{where } \quad d\\nu^{ABC}_t = \\alpha^{ABC} dP_t, g(\\nu^{ABC}_0) = u_0^{ABC}
+        \mathcal U_t^{ABC} = g(\\nu_t^{ABC}), \quad \\text{where }
+        \quad d\\nu^{ABC}_t = \\alpha^{ABC} dP_t, g(\\nu^{ABC}_0) = u_0^{ABC}
         $$
         where $g(x) = (1+e^{-x})^{-1}$ is the sigmoid function and $ABC$ denotes ETH or DAI.
 
-        In other words $\\alpha^{ABC}$ measures relative change of $\\nu$ with respect to change of $P$ and use sigmoid function $g$ to map
-        $\\nu$ to the utilisation $U\in[0,1]$. We use the sigmoid function as it is convenient to bring any real value to the interval $(0,1)$.
-        When $\\alpha^{ETH}$ is negative and $\\alpha^{DAI}$ is positive, an increase in the price of ETH decreases the utilisation of ETH and
+        In other words $\\alpha^{ABC}$ measures relative change of $\\nu$ with respect
+        to change of $P$ and use sigmoid function $g$ to map
+        $\\nu$ to the utilisation $U\in[0,1]$. We use the sigmoid function as it is
+        convenient to bring any real value to the interval $(0,1)$.
+        When $\\alpha^{ETH}$ is negative and $\\alpha^{DAI}$ is positive, an increase in
+        the price of ETH decreases the utilisation of ETH and
         increases the utilisation of DAI, as speculated above.
         """
     )
@@ -585,13 +686,16 @@ rate = vect_irm(
     collateral=False,
 )
 
-col1, col2 = st.columns(2)
+col1, col2 = st.columns(2, gap="medium")
 with col1:
     st.markdown(
         """
         At this point we define the interest rate defined by the protocol. In Aave, this is given by
 
-        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \, \mathbf 1_{\mathcal U \leq \mathcal U^*} + \left(r_1 + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*}\\right) \cdot \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
+        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \,
+        \mathbf 1_{\mathcal U \leq \mathcal U^*} +
+        \left(r_1 + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*}\\right) \cdot
+        \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
         for $r_0,r_1,r_2 >0$ and $\mathcal U^* \in [0,1)$ the targeted pool utilisation by the protocol.
 
         We set $r_0 = %.2f, r_1 = %.2f, r_2 = %.2f, U^*=%.2f$
