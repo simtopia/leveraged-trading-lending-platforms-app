@@ -485,7 +485,6 @@ with col2:
     )  # min, max, default
     sigma_f = st.slider("$\sigma_F$", 0.01, 500.0, 100.0)  # min, max, default
 
-    coef = st.slider("coef", 0.8, 1.2, 1.0, step=0.05)
 
 with col3:
     st.write(f"Number of Monte Carlo simulations: {n_mc}")
