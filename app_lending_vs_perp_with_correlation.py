@@ -427,7 +427,7 @@ st.markdown(
     the risk arising from liquidity provision on lending protocols.
 
     A thorough analysis underpinned with market data and simulations can be found in
-    our paper: [Leveraged Trading via Lending Platforms](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4437706).
+    our paper: [Leveraged Trading via Lending Platforms](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4713126).
     Our [blog post](https://medium.com/@simtopia/a76d6239600d) summarises the results.
     """
 )
