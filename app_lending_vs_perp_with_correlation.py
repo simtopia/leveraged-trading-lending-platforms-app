@@ -692,10 +692,8 @@ with col1:
         """
         At this point we define the interest rate defined by the protocol. In Aave, this is given by
 
-        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \,
-        \mathbf 1_{\mathcal U \leq \mathcal U^*} +
-        \left(r_1 + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*}\\right) \cdot
-        \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
+        $$r_{IRM} (\mathcal U) = r_0 + r_1 \cdot \\frac{\mathcal U}{\mathcal U^*} \cdot \, \mathbf 1_{\mathcal U \leq \mathcal U^*} + \left(r_1 + r_2 \cdot \\frac{\mathcal U - \mathcal U^*}{1-\mathcal U^*}\\right) \cdot \, \mathbf 1_{\mathcal U > \mathcal U^*}$$
+
         for $r_0,r_1,r_2 >0$ and $\mathcal U^* \in [0,1)$ the targeted pool utilisation by the protocol.
 
         We set $r_0 = %.2f, r_1 = %.2f, r_2 = %.2f, U^*=%.2f$
