@@ -217,6 +217,7 @@ def get_perps_price_mean_rev_to_non_arb(
 def get_perps_price_realistic(
     price_paths: np.array,
     sigma: float,
+    sigma_noise: float,
     dt: float,
     window_length: int,
     delta: float,
@@ -244,31 +245,20 @@ def get_perps_price_realistic(
             + np.sqrt(dt) * sigma * z
         )
 
-    f = np.copy(mean_rev)
-    spot = np.copy(price_paths)
+    f = np.copy(price_paths)
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
         # bullish
         mask_bullish = change[:, i] > delta
-        f[mask_bullish == 1, step] = price_paths[mask_bullish == 1, step]
-        z = rng.normal(size=n_mc)
-        spot[mask_bullish == 1, step] = (
-            f[mask_bullish == 1, step - 2] + np.sqrt(dt) * sigma * z[mask_bullish == 1]
-        )
-
+        z = rng.normal(scale=sigma_noise, size=n_mc)
+        f[mask_bullish == 1, step] += np.abs(z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
-        f[mask_bearish == 1, step] = price_paths[mask_bearish == 1, step]
-        z = rng.normal(size=n_mc)
-        spot[mask_bearish == 1, step] = (
-            f[mask_bearish == 1, step - 2] + np.sqrt(dt) * sigma * z[mask_bearish == 1]
-        )
-
+        f[mask_bearish == 1, step] -= np.abs(z[mask_bearish == 1])
         # neutral
         mask_neutral = (mask_bullish + mask_bearish) == 0
-        spot[mask_neutral == 1, step] = price_paths[mask_neutral == 1, step]
         f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
 
-    return spot, f
+    return f
 
 
 def get_perps_price_non_arb(price_paths: np.array, r: float, kappa: float = 1):
@@ -487,7 +477,11 @@ with col2:
     lambda_ = st.slider(
         "$\lambda$ mean-reversion parameter", 1, 200, 50
     )  # min, max, default
-    sigma_f = st.slider("$\sigma_F$", 0.01, 500.0, 100.0)  # min, max, default
+    sigma_f = st.slider(
+        "$\sigma_F$, vol mean reverting", 0.01, 500.0, 100.0
+    )  # min, max, default
+    st.write("Noise std dev when perp funding rate is correlated with market sentiment")
+    sigma_noise = st.slider("$\sigma$, noise std dev", 1, 500, 50)  # min, max, default
 
 
 with col3:
@@ -521,9 +515,10 @@ elif select_perp == "Mean-reversion to non-arbitrage price":
         kappa=kappa,
     )
 else:
-    price_paths, perps_price_paths = get_perps_price_realistic(
+    perps_price_paths = get_perps_price_realistic(
         price_paths=price_paths,
         sigma=sigma_f,
+        sigma_noise=sigma_noise,
         dt=dt,
         window_length=5,
         delta=5,
