@@ -252,10 +252,10 @@ def get_perps_price_realistic(
         mask_bullish = change[:, i] > delta
         z = rng.normal(scale=sigma_noise, size=n_mc)
         u = rng.uniform(low=0, high=b)
-        f[mask_bullish == 1, step] += u #np.abs(z[mask_bullish == 1])
+        f[mask_bullish == 1, step] += u  # np.abs(z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
-        f[mask_bearish == 1, step] -= u #np.abs(z[mask_bearish == 1])
+        f[mask_bearish == 1, step] -= u  # np.abs(z[mask_bearish == 1])
         # neutral
         mask_neutral = (mask_bullish + mask_bearish) == 0
         f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
@@ -439,7 +439,7 @@ with expander:
             \\text{d} P_t=\mu P_t \\text{d}t + \sigma P_t \\text{d}W_t, \,\,P_0 = p_0\,.
         $$
         The drift coefficient $\mu$ corresponds to market trend, while the diffusion coefficient $\sigma$
-        corresponds to market volatility. We provide two models for the price of the perpetual futures $F_t$: 
+        corresponds to market volatility. We provide two models for the price of the perpetual futures $F_t$:
         1. A mean-reverting process around the price of EHT-DAI,
         $$
             \\text{d}F_t = \lambda (P_t - F_t)\\text{d}t + \sigma^F \\text{d}W_t^F,\,\, F_0 = f_0, \,\, [W^F, W]_t = \\rho  t.
@@ -448,17 +448,17 @@ with expander:
         the price perpetual futures, while
         $\\rho$ is a correlation coefficient between noise processes driving the price of ETH-DAI and the Perp.
 
-        2. Historical data suggests that the funding rate of perps futures is correlated to market sentiment. 
+        2. Historical data suggests that the funding rate of perps futures is correlated to market sentiment.
         See for example [this post](https://blog.kraken.com/product/quick-primer-on-funding-rates)
 
-        We achieve this by modelling 
-        
-        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is a positive uniform random variable 
+        We achieve this by modelling
+
+        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is a positive uniform random variable
         with standard deviation $\sigma^u$.
-        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is a positive uniform random variable 
+        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is a positive uniform random variable
         with standard deviation $\sigma^u$.
 
-                
+
         """
     )
 
@@ -504,7 +504,9 @@ df_price_paths = pd.DataFrame(
 )
 df_price_paths = df_price_paths.assign(time=time, underlying="spot")
 if select_perp == "Mean-reversion to P":
-    perps_price_paths = get_perps_price_mean_rev(price_paths, dt=dt, kappa=1., sigma=sigma, lambda_=lambda_, r = 0.005)
+    perps_price_paths = get_perps_price_mean_rev(
+        price_paths, dt=dt, kappa=1.0, sigma=sigma, lambda_=lambda_, r=0.005
+    )
 else:
     perps_price_paths = get_perps_price_realistic(
         price_paths=price_paths,
