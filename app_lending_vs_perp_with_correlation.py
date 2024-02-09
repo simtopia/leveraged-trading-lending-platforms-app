@@ -249,11 +249,15 @@ def get_perps_price_realistic(
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
         # bullish
         mask_bullish = change[:, i] > delta
-        u = rng.exponential(sigma_noise)
-        f[mask_bullish == 1, step] += u  # np.abs(z[mask_bullish == 1])
+        u = rng.exponential(sigma_noise, size=n_mc)
+        f[mask_bullish == 1, step] += u[
+            mask_bullish == 1
+        ]  # np.abs(z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
-        f[mask_bearish == 1, step] -= u  # np.abs(z[mask_bearish == 1])
+        f[mask_bearish == 1, step] -= u[
+            mask_bearish == 1
+        ]  # np.abs(z[mask_bearish == 1])
         # neutral
         mask_neutral = (mask_bullish + mask_bearish) == 0
         f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
