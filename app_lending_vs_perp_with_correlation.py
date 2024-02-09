@@ -246,14 +246,16 @@ def get_perps_price_realistic(
         )
 
     f = np.copy(price_paths)
+    b = np.sqrt(12) * sigma
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
         # bullish
         mask_bullish = change[:, i] > delta
         z = rng.normal(scale=sigma_noise, size=n_mc)
-        f[mask_bullish == 1, step] += np.abs(z[mask_bullish == 1])
+        u = rng.uniform(low=0, high=b)
+        f[mask_bullish == 1, step] += u #np.abs(z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
-        f[mask_bearish == 1, step] -= np.abs(z[mask_bearish == 1])
+        f[mask_bearish == 1, step] -= u #np.abs(z[mask_bearish == 1])
         # neutral
         mask_neutral = (mask_bullish + mask_bearish) == 0
         f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
@@ -437,17 +439,26 @@ with expander:
             \\text{d} P_t=\mu P_t \\text{d}t + \sigma P_t \\text{d}W_t, \,\,P_0 = p_0\,.
         $$
         The drift coefficient $\mu$ corresponds to market trend, while the diffusion coefficient $\sigma$
-        corresponds to market volatility. We model the price of the perpetual futures $F_t$ as a mean-reverting
-        process around the price of EHT-DAI,
+        corresponds to market volatility. We provide two models for the price of the perpetual futures $F_t$: 
+        1. A mean-reverting process around the price of EHT-DAI,
         $$
-            dF_t = \lambda (P_t - F_t)dt + \sigma^F dW_t^F,\,\, F_0 = f_0, \,\, [W^F, W]_t = \\rho  t.
+            \\text{d}F_t = \lambda (P_t - F_t)\\text{d}t + \sigma^F \\text{d}W_t^F,\,\, F_0 = f_0, \,\, [W^F, W]_t = \\rho  t.
         $$
-        Here $\lambda$ dictates the strenght of the mean reversion, $\sigma^F$ is the intrinsic volatility of
+        Here $\lambda$ dictates the strength of the mean reversion, $\sigma^F$ is the intrinsic volatility of
         the price perpetual futures, while
         $\\rho$ is a correlation coefficient between noise processes driving the price of ETH-DAI and the Perp.
 
-        One can see from the data these are sensible modelling assumptions, but of course, more sophisticated
-        models are available. All these parameters 424Gcan be estimated from the data, and can be specified below.
+        2. Historical data suggests that the funding rate of perps futures is correlated to market sentiment. 
+        See for example [this post](https://blog.kraken.com/product/quick-primer-on-funding-rates)
+
+        We achieve this by modelling 
+        
+        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is a positive uniform random variable 
+        with standard deviation $\sigma^u$.
+        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is a positive uniform random variable 
+        with standard deviation $\sigma^u$.
+
+                
         """
     )
 
@@ -467,9 +478,7 @@ with col2:
     select_perp = st.selectbox(
         "How do we define the Perp price process?",
         [
-            "Non-arbitrage",
             "Mean-reversion to P",
-            "Mean-reversion to non-arbitrage price",
             "Funding rates correlated with market sentiment",
         ],
         index=1,
@@ -481,7 +490,7 @@ with col2:
         "$\sigma_F$, vol mean reverting", 0.01, 500.0, 100.0
     )  # min, max, default
     st.write("Noise std dev when perp funding rate is correlated with market sentiment")
-    sigma_noise = st.slider("$\sigma$, noise std dev", 1, 500, 50)  # min, max, default
+    sigma_noise = st.slider("$\sigma^u$", 1, 500, 50)  # min, max, default
 
 
 with col3:
@@ -496,24 +505,6 @@ df_price_paths = pd.DataFrame(
 df_price_paths = df_price_paths.assign(time=time, underlying="spot")
 if select_perp == "Non-arbitrage":
     perps_price_paths = get_perps_price_non_arb(price_paths, r=0.05, kappa=kappa)
-elif select_perp == "Mean-reversion to P":
-    perps_price_paths = get_perps_price_mean_rev(
-        price_paths,
-        lambda_=lambda_,
-        sigma=sigma_f,
-        dt=dt,
-        r=0.01,
-        kappa=kappa,
-    )
-elif select_perp == "Mean-reversion to non-arbitrage price":
-    perps_price_paths = get_perps_price_mean_rev_to_non_arb(
-        price_paths,
-        lambda_=lambda_,
-        sigma=sigma_f,
-        dt=dt,
-        r=0.01,
-        kappa=kappa,
-    )
 else:
     perps_price_paths = get_perps_price_realistic(
         price_paths=price_paths,
@@ -524,6 +515,24 @@ else:
         delta=5,
         lambda_=lambda_,
     )
+# elif select_perp == "Mean-reversion to P":
+#     perps_price_paths = get_perps_price_mean_rev(
+#         price_paths,
+#         lambda_=lambda_,
+#         sigma=sigma_f,
+#         dt=dt,
+#         r=0.01,
+#         kappa=kappa,
+#     )
+# elif select_perp == "Mean-reversion to non-arbitrage price":
+#     perps_price_paths = get_perps_price_mean_rev_to_non_arb(
+#         price_paths,
+#         lambda_=lambda_,
+#         sigma=sigma_f,
+#         dt=dt,
+#         r=0.01,
+#         kappa=kappa,
+#     )
 
 
 df_perps_price_paths = pd.DataFrame(
@@ -834,7 +843,7 @@ with price_col:
         x="PnL",
         color="derivative",
         opacity=0.5,
-        nbins=50,
+        nbins=80,
         barmode="overlay",
         # range_x=(-400, 200),
     )
@@ -870,7 +879,7 @@ with price_col:
         pnl_diff_melted[pnl_diff_melted["time"] == t],
         x="diff_pnl",
         opacity=0.5,
-        nbins=50,
+        nbins=80,
         labels={"diff_pnl": "(PnL loan position) - (PnL long perp position)"},
     )
     # fig.write_image(f"results/diff_pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
@@ -930,7 +939,7 @@ with price_col:
         x="funding_fee",
         color="derivative",
         opacity=0.5,
-        nbins=50,
+        nbins=80,
         barmode="overlay",
         # range_x=(-15, 15),
         labels={"cPerp": "Loan position", "funding_fee": "funding fee"},
