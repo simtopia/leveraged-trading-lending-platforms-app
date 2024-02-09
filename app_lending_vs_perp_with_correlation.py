@@ -246,7 +246,7 @@ def get_perps_price_realistic(
         )
 
     f = np.copy(price_paths)
-    b = np.sqrt(12) * sigma
+    b = np.sqrt(12) * sigma_noise
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
         # bullish
         mask_bullish = change[:, i] > delta
