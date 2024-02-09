@@ -246,12 +246,10 @@ def get_perps_price_realistic(
         )
 
     f = np.copy(price_paths)
-    b = np.sqrt(12) * sigma_noise
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
         # bullish
         mask_bullish = change[:, i] > delta
-        z = rng.normal(scale=sigma_noise, size=n_mc)
-        u = rng.uniform(low=0, high=b)
+        u = rng.exponential(sigma_noise)
         f[mask_bullish == 1, step] += u  # np.abs(z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
@@ -453,10 +451,10 @@ with expander:
 
         We achieve this by modelling
 
-        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is a positive uniform random variable
-        with standard deviation $\sigma^u$.
-        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is a positive uniform random variable
-        with standard deviation $\sigma^u$.
+        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is an exponential random variable
+        with standard deviation $\sigma^{exp}$.
+        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is an exponential random variable
+        with standard deviation $\sigma^{exp}$.
 
 
         """
@@ -487,10 +485,10 @@ with col2:
         "$\lambda$ mean-reversion parameter", 1, 200, 50
     )  # min, max, default
     sigma_f = st.slider(
-        "$\sigma_F$, vol mean reverting", 0.01, 500.0, 100.0
+        "$\sigma^F$, vol mean reverting", 0.01, 500.0, 100.0
     )  # min, max, default
     st.write("Noise std dev when perp funding rate is correlated with market sentiment")
-    sigma_noise = st.slider("$\sigma^u$", 1, 500, 50)  # min, max, default
+    sigma_noise = st.slider("$\sigma^{exp}$", 1, 500, 50)  # min, max, default
 
 
 with col3:
@@ -845,7 +843,7 @@ with price_col:
         x="PnL",
         color="derivative",
         opacity=0.5,
-        nbins=80,
+        nbins=60,
         barmode="overlay",
         # range_x=(-400, 200),
     )
@@ -881,7 +879,7 @@ with price_col:
         pnl_diff_melted[pnl_diff_melted["time"] == t],
         x="diff_pnl",
         opacity=0.5,
-        nbins=80,
+        nbins=60,
         labels={"diff_pnl": "(PnL loan position) - (PnL long perp position)"},
     )
     # fig.write_image(f"results/diff_pnl_mu{mu}_sigma{sigma}_thetaF{lt_f}.png")
@@ -941,7 +939,7 @@ with price_col:
         x="funding_fee",
         color="derivative",
         opacity=0.5,
-        nbins=80,
+        nbins=60,
         barmode="overlay",
         # range_x=(-15, 15),
         labels={"cPerp": "Loan position", "funding_fee": "funding fee"},
