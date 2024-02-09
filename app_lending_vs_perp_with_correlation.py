@@ -503,8 +503,8 @@ df_price_paths = pd.DataFrame(
     price_paths.T, columns=["mc{}".format(i) for i in range(price_paths.shape[0])]
 )
 df_price_paths = df_price_paths.assign(time=time, underlying="spot")
-if select_perp == "Non-arbitrage":
-    perps_price_paths = get_perps_price_non_arb(price_paths, r=0.05, kappa=kappa)
+if select_perp == "Mean-reversion to P":
+    perps_price_paths = get_perps_price_mean_rev(price_paths, dt=dt, kappa=1., sigma=sigma, lambda_=lambda_, r = 0.005)
 else:
     perps_price_paths = get_perps_price_realistic(
         price_paths=price_paths,
