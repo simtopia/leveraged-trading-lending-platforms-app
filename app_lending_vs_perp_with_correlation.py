@@ -247,17 +247,13 @@ def get_perps_price_realistic(
 
     f = np.copy(price_paths)
     for i, step in enumerate(range(window_length, mean_rev.shape[1])):
+        z = rng.random(size=n_mc)
         # bullish
         mask_bullish = change[:, i] > delta
-        u = rng.exponential(sigma_noise, size=n_mc)
-        f[mask_bullish == 1, step] += u[
-            mask_bullish == 1
-        ]  # np.abs(z[mask_bullish == 1])
+        f[mask_bullish == 1, step] += np.exp(sigma_noise * z[mask_bullish == 1])
         # bearish
         mask_bearish = change[:, i] < -delta
-        f[mask_bearish == 1, step] -= u[
-            mask_bearish == 1
-        ]  # np.abs(z[mask_bearish == 1])
+        f[mask_bearish == 1, step] -= np.exp(sigma_noise * z[mask_bearish == 1])
         # neutral
         mask_neutral = (mask_bullish + mask_bearish) == 0
         f[mask_neutral == 1, step] = mean_rev[mask_neutral == 1, step]
@@ -453,13 +449,20 @@ with expander:
         2. Historical data suggests that the funding rate of perps futures is correlated to market sentiment.
         See for example [this post](https://blog.kraken.com/product/quick-primer-on-funding-rates)
 
-        We achieve this by modelling
+        We detect the trend of the market by comparing the average price over consecutive windows of time. Let $\Delta t$ be the time intervals at which $P_t$ is recorded, then we define
+        $$
+        \\bar P_t^k := \\frac1{k}\sum_{j=0}^{k-1} P_{t-j \cdot \Delta t}.
+        $$
+        For a fixed tolerance parameter $\delta > 0$,
+        - The market is bearish when $\\bar P_t^k - \\bar P_{t-1}^k < -\delta$.
+        - The market is neutral when $\lvert\\bar P_t^k - \\bar P_{t-1}^k \rvert < \delta$.
+        - The market is bullish when $\\bar P_t^k - \\bar P_{t-1}^k > \delta$.
 
-        - $F_t = P_t + u, \,\,$, if the market is bullish, where $u$ is an exponential random variable
-        with standard deviation $\sigma^{exp}$.
-        - $F_t = P_t - u, \,\,$, if the market is bearish, where $u$ is an exponential random variable
-        with standard deviation $\sigma^{exp}$.
+        The perpetual futures price is then modelled by
 
+        - $F_t = P_t + e^{\sigma^{exp}\Delta W^F_t}, \,\,$ if the market is bullish
+        - $F_t = P_t - e^{\sigma^{exp}\Delta W^F_t}, \,\,$ if the market is bearish
+        - $F_t$ is mean-reverting to $P_t$ if the market is neutral
 
         """
     )
@@ -492,7 +495,9 @@ with col2:
         "$\sigma^F$, vol mean reverting", 0.01, 500.0, 100.0
     )  # min, max, default
     st.write("Noise std dev when perp funding rate is correlated with market sentiment")
-    sigma_noise = st.slider("$\sigma^{exp}$", 1, 500, 50)  # min, max, default
+    sigma_noise = st.slider(
+        "$\sigma^{exp}$", 1.0, 8.0, 6.5, step=0.5
+    )  # min, max, default
 
 
 with col3:
